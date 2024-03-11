@@ -16,10 +16,13 @@
 
 use crate::{
     account::PrivateKey,
-    types::{IdentifierNative, ProgramIDNative, RecordPlaintextNative},
+    account::ViewKey,
+    types::Field,
+    Credits,
+    RecordCiphertext,
 };
 
-use aleo_rust::Credits;
+use crate::types::native::{IdentifierNative, ProgramIDNative, RecordPlaintextNative};
 use std::{ops::Deref, str::FromStr};
 use wasm_bindgen::prelude::*;
 
@@ -30,6 +33,19 @@ pub struct RecordPlaintext(RecordPlaintextNative);
 
 #[wasm_bindgen]
 impl RecordPlaintext {
+    #[wasm_bindgen]
+    pub fn commitment(&self, program_id: &str, record_name: &str) -> Result<Field, String> {
+        Ok(Field::from(
+            self.to_commitment(
+                &ProgramIDNative::from_str(program_id)
+                    .map_err(|_| format!("{program_id} is an invalid program name"))?,
+                &IdentifierNative::from_str(record_name)
+                    .map_err(|_| format!("{record_name} is an invalid identifier"))?,
+            )
+            .map_err(|e| e.to_string())?,
+        ))
+    }
+
     /// Return a record plaintext from a string.
     ///
     /// @param {string} record String representation of a plaintext representation of an Aleo record
@@ -55,6 +71,24 @@ impl RecordPlaintext {
         self.0.microcredits().unwrap_or(0)
     }
 
+    /// Returns the nonce of the record. This can be used to uniquely identify a record.
+    ///
+    /// @returns {string} Nonce of the record
+    #[wasm_bindgen(js_name = nonce)]
+    pub fn nonce(&self) -> String {
+        self.0.nonce().to_string()
+    }
+
+    /// Decrypt the record ciphertext into plaintext using the view key. The record will only
+    /// decrypt if the record was encrypted by the account corresponding to the view key
+    ///
+    /// @param {ViewKey} view_key View key used to decrypt the ciphertext
+    /// @returns {RecordPlaintext | Error} Record plaintext object
+    // pub fn encrypt(&self, view_key: &ViewKey) -> Result<RecordCiphertext, String> {
+    //     Ok(RecordCiphertext::from(self.0.encrypt(***view_key).map_err(|_| "Encryption failed - view key did not match record".to_string())?
+    //     ))
+    // }
+
     /// Attempt to get the serial number of a record to determine whether or not is has been spent
     ///
     /// @param {PrivateKey} private_key Private key of the account that owns the record
@@ -68,15 +102,9 @@ impl RecordPlaintext {
         program_id: &str,
         record_name: &str,
     ) -> Result<String, String> {
-        let parsed_program_id =
-            ProgramIDNative::from_str(program_id).map_err(|_| "Invalid ProgramID specified".to_string())?;
-        let record_identifier = IdentifierNative::from_str(record_name)
-            .map_err(|_| "Invalid Identifier specified for record".to_string())?;
-        let commitment = self
-            .to_commitment(&parsed_program_id, &record_identifier)
-            .map_err(|_| "A commitment for this record and program could not be computed".to_string())?;
+        let commitment = self.commitment(program_id, record_name)?;
 
-        let serial_number = RecordPlaintextNative::serial_number(private_key.into(), commitment)
+        let serial_number = RecordPlaintextNative::serial_number(private_key.into(), commitment.into())
             .map_err(|_| "Serial number derivation failed".to_string())?;
         Ok(serial_number.to_string())
     }
@@ -85,6 +113,12 @@ impl RecordPlaintext {
 impl From<RecordPlaintextNative> for RecordPlaintext {
     fn from(record: RecordPlaintextNative) -> Self {
         Self(record)
+    }
+}
+
+impl From<RecordPlaintext> for RecordPlaintextNative {
+    fn from(record: RecordPlaintext) -> Self {
+        record.0
     }
 }
 
@@ -156,8 +190,7 @@ mod tests {
         let record = RecordPlaintext::from_string(RECORD).unwrap();
         let program_id = "not a real program id";
         let record_name = "token";
-        let expected_value = "Invalid ProgramID specified".to_string();
-        assert_eq!(record.serial_number_string(&pk, program_id, record_name).err(), Some(expected_value));
+        assert!(record.serial_number_string(&pk, program_id, record_name).is_err());
     }
 
     #[wasm_bindgen_test]
@@ -166,8 +199,7 @@ mod tests {
         let record = RecordPlaintext::from_string(RECORD).unwrap();
         let program_id = "token.aleo";
         let record_name = "not a real record name";
-        let expected_value = "Invalid Identifier specified for record".to_string();
-        assert_eq!(record.serial_number_string(&pk, program_id, record_name).err(), Some(expected_value));
+        assert!(record.serial_number_string(&pk, program_id, record_name).is_err());
     }
 
     #[wasm_bindgen_test]

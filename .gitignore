@@ -4,10 +4,9 @@
 ## Build Artifacts
 **/node_modules
 **/target
-wasm/Cargo.lock
-**/build
 **/dist
 storage*/
+**/.next
 
 ## OS Files
 **.DS_Store
@@ -18,3 +17,5 @@ rust/src/program/.DS_Store
 
 # Local Netlify folder
 .netlify
+
+package-lock.json

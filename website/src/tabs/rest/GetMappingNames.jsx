@@ -32,7 +32,7 @@ export const GetMappingNames = () => {
             if (id) {
                 axios
                     .get(
-                        `https://vm.aleo.org/api/testnet3/program/${id}/mappings`,
+                        `https://api.explorer.aleo.org/v1/testnet3/program/${id}/mappings`,
                     )
                     .then((response) => {
                         setStatus("success");
@@ -62,12 +62,11 @@ export const GetMappingNames = () => {
     return (
         <Card
             title="Get Mapping Names"
-            style={{ width: "100%", borderRadius: "20px" }}
-            bordered={false}
+            style={{ width: "100%" }}
             extra={
                 <Button
                     type="primary"
-                    shape="round"
+                    
                     size="middle"
                     onClick={() => {
                         tryRequest("credits.aleo");
@@ -91,7 +90,6 @@ export const GetMappingNames = () => {
                         onSearch={onSearch}
                         onChange={onChange}
                         value={programIDString()}
-                        style={{ borderRadius: "20px" }}
                     />
                 </Form.Item>
             </Form>
